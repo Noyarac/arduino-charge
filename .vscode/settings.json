@@ -1,0 +1,6 @@
+{
+    "arduino.path": "C:/Program Files/Arduino CLI",
+    "arduino.commandPath": "arduino-cli",
+    "arduino.useArduinoCli": true,
+    "arduino.logLevel": "info"
+}

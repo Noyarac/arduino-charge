@@ -1,0 +1,14 @@
+# VSCode configuration (contient des chemins spécifiques à chaque machine)
+.vscode/c_cpp_properties.json
+
+# Fichiers de compilation Arduino
+*.hex
+*.elf
+*.eep
+*.map
+
+# Fichiers temporaires
+*.swp
+*.swo
+*~
+.DS_Store

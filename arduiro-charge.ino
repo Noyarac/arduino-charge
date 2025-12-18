@@ -1,168 +1,142 @@
-enum Pin {
-    RED_PIN = A0,
-    GREEN_PIN = A1,
-    BLUE_PIN = A2,
-    LED1_PIN = 2,
-    LED2_PIN = 3,
-    LED3_PIN = 4,
-    LED4_PIN = 5,
-    LED5_PIN = 6
-};
+// Arduino Charge Controller
+// Refactored version with separated classes
+
+#include <RTClib.h>
+#include <Wire.h>
+#include "config.h"
+#include "Led.h"
+#include "Led_Bar.h"
+#include "Interface.h"
+#include "Button.h"
+
+// Configuration variables
+bool ADJUST_RTC = false;
+DateTime adj(2025, 12, 14, 17, 0, 0);
+
+// Constants definitions
+const byte SAMPLE = 60;
+const byte THRESHOLD_FREQUENCY = SAMPLE / 6;
+const byte THRESHOLD_SENSOR = 140;
+const int BLINKING_DELAY = 500;
+const int FLOWING_DELAY = 700;
+
 const Pin COLOR_PIN[] = {RED_PIN, GREEN_PIN, BLUE_PIN};
 const Pin LED_PIN[] = {LED1_PIN, LED2_PIN, LED3_PIN, LED4_PIN, LED5_PIN};
+const Pin OUT_PIN[] = {OUT_RED_PIN, OUT_GREEN_PIN, OUT_BLUE_PIN, OUT_BLINKING_PIN};
+const Pin RTC_PIN[] = {RTC_SDA_PIN, RTC_SCL_PIN};
 
-const byte SAMPLE = 100;
-const int BLINKING_DELAY = 100;
+// Alarm configuration
+byte ALARM_ON_HOUR = 22;
+byte ALARM_ON_MINUTE = 0;
+byte ALARM_OFF_HOUR = 6;
+byte ALARM_OFF_MINUTE = 0;
+int ALARM_ON_TIME = 60 * ALARM_ON_HOUR + ALARM_ON_MINUTE;
+int ALARM_OFF_TIME = 60 * ALARM_OFF_HOUR + ALARM_OFF_MINUTE;
 
-enum State {
-    AVAILABLE, TIMED, CHARGING, OVER, MENU_ROOT, MENU_CURRENT, MENU_SCHEDULE
-};
+// Human-readable labels
+char* hr_state[] = {"AVAILABLE", "TIMED", "CHARGING", "OVER", "MENU_SELECT_CURRENT", 
+                    "MENU_SELECT_SCHEDULE", "MENU_CURRENT", "MENU_SCHEDULE", "ERROR"};
+char* hr_color[] = {"BLACK", "BLUE", "GREEN", "CYAN", "RED", "MAGENTA", "YELLOW", "WHITE"};
+char* hr_display[] = {"SOLID", "BLINKING", "FLOWING"};
 
-enum Color {
-    BLACK = 0b00000000,
-    WHITE = 0b00000111,
-    YELLOW = 0b00000110,
-    MAGENTA = 0b00000101,
-    RED = 0b00000100,
-    CYAN = 0b00000011,
-    GREEN = 0b00000010,
-    BLUE = 0b00000001
-};
+// Global objects
+DS3231 rtc;
+Led_Bar led_bar;
+Interface interface(LED);
+Button button(BTN_PIN);
 
+// Runtime variables
+DateTime now;
+DateTime summer_begin;
+DateTime summer_end;
+int time_sum;
+bool in_charging_hours;
 
-String hr_color(Color color) {
-    switch (color) {
-        case BLACK: return "BLACK";
-        case WHITE: return "WHITE";
-        case MAGENTA: return "MAGENTA";
-        case YELLOW: return "YELLOW";
-        case RED: return "RED";
-        case CYAN: return "CYAN";
-        case GREEN: return "GREEN";
-        case BLUE: return "BLUE";
-        default: return "PROBLEM";
+// Error handler function
+void error() {
+    interface.error();
+    while (true) {
+        delay(60000);
     }
 }
 
-enum Display {
-    SOLID,
-    BLINKING,
-    FLOWING
-};
-
-
-
-enum Pass {
-    OLD, NEW
-};
-
-class Led {
-    public:
-    Pin pin;
-    Color color;
-    
-    void update() {
-        uint8_t char_color = 0;
-        byte counter[3] = {0, 0, 0};
-        for (byte sample = 0; sample < SAMPLE; sample++) {
-            delay(1);
-            for (byte i = 0; i < 3; i++) {
-                if (!digitalRead(COLOR_PIN[i]) && digitalRead(pin)) {counter[i]++;}
-            }
-        }
-        for (byte i = 0; i < 3; i++) {
-            char_color <<= 1;
-            if (counter[i] > 5) {char_color |= 0b00000001;}
-        }
-        color = Color(char_color);
-    }
-};
-
-class {
-    public:
-    Led leds[5] {Led {LED1_PIN}, Led {LED2_PIN}, Led {LED3_PIN}, Led {LED4_PIN}, Led {LED5_PIN}};
-    Color old_leds_color;
-    char old_leds_level;
-    Color color;
-    Display display;
-    byte level;
-    State state;
-
-    void update() {
-        // Update
-        delay(BLINKING_DELAY);
-        for (byte pass = 0; pass < 2; pass++) {
-            if (Pass(pass) == NEW) {
-                    old_leds_color = leds[0].color;
-                    old_leds_level = level;
-            }
-            level = 5;
-            for (byte i = 0; i < 5; i++) {
-                leds[i].update();
-                if (leds[i].color == BLACK) {level = i; break;}
-            }
-        }
-
-        // Display
-        Pass colored;
-        if (leds[0].color != BLACK && leds[0].color == old_leds_color) {
-            if (old_leds_level == level) {
-                display == SOLID;
-            } else {
-                display == FLOWING;
-            }
-        } else
-        if (leds[0].color != BLACK && old_leds_color == BLACK) {
-            display = BLINKING;
-            colored = NEW;
-        } else
-        if (leds[0].color == BLACK && old_leds_color != BLACK) {
-            display = BLINKING;
-            colored = OLD;
-        } else {
-            display = SOLID;
-        }
-
-        // Color
-        if (colored == OLD) {
-            color = old_leds_color;
-            level = old_leds_level;
-        } else {
-            color = leds[0].color;
-        }
-    }
-} led_bar, old_led_bar;
-
 void setup() {
-    analogReference(EXTERNAL);
+    button.setup();
     for (Pin pin : LED_PIN) {
         pinMode(pin, INPUT);
     }
     for (Pin pin : COLOR_PIN) {
         pinMode(pin, INPUT_PULLUP);
     }
-    Serial.begin(115200);
+    for (Pin pin : RTC_PIN) {
+        pinMode(pin, INPUT);
+    }
+    if (interface.type_interface == USB) {
+        Serial.begin(115200);
+        analogReference(EXTERNAL);
+        interface.print("Début");
+    } else {
+        for (Pin pin : OUT_PIN) {
+            pinMode(pin, OUTPUT);
+        }
+    }
+    analogReference(EXTERNAL);
+    Wire.begin();
+    rtc.begin();
 
-    
+    if (ADJUST_RTC) {
+        Serial.println("Ajustement du RTC...");
+        rtc.adjust(adj);
+        delay(100);
+    }
 
 }
 
 void loop() {
-    old_led_bar.color = led_bar.color;
-    old_led_bar.display = led_bar.display;
-    old_led_bar.level = led_bar.level;
+    now = rtc.now();
+    now.operator-=(3600);
+    summer_begin.setyear(now.year());
+    summer_begin.setmonth(3);
+    summer_begin.setday(31);
+    summer_begin.setday(31 - summer_begin.dayOfWeek());
+    summer_end.setyear(now.year());
+    summer_end.setmonth(10);
+    summer_end.setday(31);
+    summer_end.setday(31 - summer_end.dayOfWeek());
+    if (now.operator>=(summer_begin) && now.operator<=(summer_end)) {
+        now.operator+=(3600);
+    }
+    time_sum = now.hour() * 60 + now.minute();
     led_bar.update();
-    if ((old_led_bar.color != led_bar.color) || (old_led_bar.display != led_bar.display) || (old_led_bar.level != led_bar.level) ) {
-        Serial.println(hr_color(led_bar.color) + ", " + humano_diseplaybu(led_bar.display) + ", " + String(led_bar.level));
+    interface.output(led_bar, time_sum);
+    if (ALARM_ON_TIME < ALARM_OFF_TIME) {
+        in_charging_hours = (ALARM_ON_TIME <= time_sum && time_sum < ALARM_OFF_TIME);
+    } else {
+        in_charging_hours = ((time_sum > ALARM_ON_TIME) || (time_sum < ALARM_OFF_TIME));
     }
 
-}
+    if (led_bar.state == ERROR) {error();}
+    if (!in_charging_hours && led_bar.state == AVAILABLE) {
+        button.from_available_to_timed();
+    } else
+    if (!in_charging_hours && led_bar.state == TIMED) {
+        button.from_timed_to_timed();
+    } else
+    if (!in_charging_hours && led_bar.state == CHARGING) {
+        button.from_charging_to_available();
+    } else
+    if (!in_charging_hours && led_bar.state == OVER && time_sum > 9 * 60) {
+        button.from_over_to_available();button.from_available_to_timed();
+    } else
+    if (in_charging_hours && led_bar.state == AVAILABLE) {
+        button.from_available_to_timed(); delay(20000); button.from_timed_to_available();
+    } else
+    if (in_charging_hours && led_bar.state == TIMED) {
+        button.from_timed_to_available();
+    } else
+    if (in_charging_hours && led_bar.state == OVER) {
+        button.from_over_to_available();;
+    } 
 
-String humano_diseplaybu(byte ddiiss) {
-    switch (ddiiss) {
-        case SOLID: return "SOLID";
-        case BLINKING: return "BLINKING";
-        case FLOWING: return "FLOWING";
-        default: return "PROBLEM";
-    }
+    delay(60000);
 }
