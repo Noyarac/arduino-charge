@@ -2,6 +2,8 @@
 #define CONFIG_H
 
 #include <Arduino.h>
+#include <RTClib.h>
+
 
 // RTC Configuration
 extern bool ADJUST_RTC;
@@ -42,10 +44,10 @@ extern const int BLINKING_DELAY;
 extern const int FLOWING_DELAY;
 
 // Pin Arrays
-extern const Pin COLOR_PIN[];
-extern const Pin LED_PIN[];
-extern const Pin OUT_PIN[];
-extern const Pin RTC_PIN[];
+extern const Pin COLOR_PIN[3];
+extern const Pin LED_PIN[5];
+extern const Pin OUT_PIN[4];
+extern const Pin RTC_PIN[2];
 
 // State Enumeration
 enum State {
