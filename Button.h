@@ -13,7 +13,7 @@ class Button {
 public:
     Pin pin;
     
-    Button(Pin p);
+    Button();
     void setup();
     void press(Button_press press_time);
     bool bug_fix(Led_Bar lb, State targ_state, byte targ_level);

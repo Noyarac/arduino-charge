@@ -19,7 +19,7 @@ extern int ALARM_OFF_TIME;
 
 // Pin Definitions
 enum Pin {
-    BTN_PIN = 0,
+    BTN_PIN = 1,
     RTC_SDA_PIN = A4,
     RTC_SCL_PIN = A5,
     RED_PIN = 13,
@@ -29,7 +29,7 @@ enum Pin {
     LED2_PIN = A1,
     LED3_PIN = A2,
     LED4_PIN = A3,
-    LED5_PIN = 1,
+    LED5_PIN = 0,
     OUT_RED_PIN = 5,
     OUT_GREEN_PIN = 6,
     OUT_BLUE_PIN = 7,

@@ -61,7 +61,7 @@ void Interface::output(Led_Bar led_bar, int time) {
         }
         case LED:
             digitalWrite(OUT_BLINKING_PIN, HIGH);
-            delay(200);
+            delay(500);
             digitalWrite(OUT_BLINKING_PIN, LOW);
             break;
         case NONE:

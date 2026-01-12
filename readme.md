@@ -2,17 +2,17 @@
 (Vue de face)
 Pin 1: VCC
 Pin 2: Reset
-Pin 3: Red / RXD
-Pin 4: Green
-Pin 5: Blue
-Pin 6: 1
-Pin 7: TXD
+Pin 3: BTN_PIN / TXD / D1
+Pin 4: LED2_PIN / A1
+Pin 5: LED3_PIN / A2
+Pin 6: LED4_PIN / A3
+Pin 7: LED5_PIN / RXD / D0
 Pin 8: Gnd
 Pin 9: Gnd
-Pin 10: 5 / SS
-Pin 11: 4 
-Pin 12: 3 / MOSI
-Pin 13: 2 / MISO
-Pin 14: Btn / SCK
-Pin 15: Reset
+Pin 10: Unused / SS / D10
+Pin 11: LED1_PIN / A0
+Pin 12: BLUE_PIN / MOSI / D11
+Pin 13: GREEN_PIN / MISO / D12
+Pin 14: RED_PIN / SCK / D13
+Pin 15: Unused / Reset
 Pin 16: VCC

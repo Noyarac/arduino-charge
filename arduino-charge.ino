@@ -1,6 +1,3 @@
-// Arduino Charge Controller
-// Refactored version with separated classes
-
 #include <RTClib.h>
 #include <Wire.h>
 #include "config.h"
@@ -11,7 +8,7 @@
 
 // Configuration variables
 bool ADJUST_RTC = false;
-DateTime adj(2025, 12, 19, 16, 49, 0);
+DateTime adj(2026, 1, 2, 13, 59, 0);
 
 // Constants definitions
 const byte SAMPLE = 60;
@@ -42,8 +39,8 @@ char* hr_display[] = {"SOLID", "BLINKING", "FLOWING"};
 // Global objects
 DS3231 rtc;
 Led_Bar led_bar;
-Interface interface(LED);
-Button button(BTN_PIN);
+Interface interface(NONE);
+Button button;
 
 // Runtime variables
 DateTime now;
@@ -64,7 +61,7 @@ void setup() {
     button.setup();
     for (Pin pin : LED_PIN) {
         pinMode(pin, INPUT);
-    }
+    }    
     for (Pin pin : COLOR_PIN) {
         pinMode(pin, INPUT_PULLUP);
     }
@@ -73,9 +70,10 @@ void setup() {
     }
     analogReference(EXTERNAL);
     if (interface.type_interface == USB) {
-        Serial.begin(115200);
+        Serial.begin(9600);
         interface.print("Début");
-    } else {
+    }
+    if (interface.type_interface == BREADBOARD || interface.type_interface == LED) {
         for (Pin pin : OUT_PIN) {
             pinMode(pin, OUTPUT);
         }
@@ -84,7 +82,9 @@ void setup() {
     rtc.begin();
 
     if (ADJUST_RTC) {
-        Serial.println("Ajustement du RTC...");
+        if (interface.type_interface == USB) {
+            Serial.println("Ajustement du RTC...");
+        }
         rtc.adjust(adj);
         delay(100);
     }

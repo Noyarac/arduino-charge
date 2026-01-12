@@ -4,8 +4,8 @@
 extern Led_Bar led_bar;
 extern Interface interface;
 
-Button::Button(Pin p) {
-    pin = p;
+Button::Button() {
+    pin = BTN_PIN;
 }
 
 void Button::setup() {
